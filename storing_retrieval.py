@@ -231,6 +231,47 @@ class VectorStore:
     # ------------------------------------------------------------------
     # Document management
     # ------------------------------------------------------------------
+    
+    def list_documents(self) -> list[str]:
+        """Return a sorted list of unique document names in the collection."""
+        total = self._collection.count()
+        if total == 0:
+            return []
+        all_meta = self._collection.get(include=["metadatas"])["metadatas"]
+        return sorted({m.get("doc_name", "") for m in all_meta if m.get("doc_name")})
+
+    def delete_document(self, doc_name: str) -> int:
+        """
+        Remove all chunks belonging to *doc_name* from the collection.
+
+        Returns:
+            Number of chunks deleted.
+        """
+        ids_to_delete = self._collection.get(
+            where={"doc_name": doc_name},
+            include=[],
+        )["ids"]
+
+        if not ids_to_delete:
+            logger.warning("delete_document: no chunks found for %r.", doc_name)
+            return 0
+
+        self._collection.delete(ids=ids_to_delete)
+        logger.info("Deleted %d chunks for document %r.", len(ids_to_delete), doc_name)
+        return len(ids_to_delete)
+
+    def clear_all(self) -> None:
+        """Wipe the entire collection. Use with caution."""
+        self._client.delete_collection(self._collection.name)
+        self._collection = self._client.get_or_create_collection(
+            name=self._collection.name,
+            embedding_function=self._embed_fn,
+            metadata={"hnsw:space": "cosine"},
+        )
+        logger.warning("Collection cleared.")
+
+    def __len__(self) -> int:
+        return self._collection.count()
 
 
 
