@@ -1,7 +1,6 @@
-import requests
-
-OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_LLM_MODEL = "llama3"
+from groq import Groq
+from constants import GROQ_API_KEY, GROQ_MODEL
+client = Groq(api_key=GROQ_API_KEY)
 
 
 def generate_response(query: str, context: str) -> str:
@@ -23,19 +22,17 @@ Answer:
 """
 
     try:
-        response = requests.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": OLLAMA_LLM_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0.3},
-            },
-            timeout=120,
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system",
+                 "content": "You are a financial analyst assistant. Answer only from the provided context. If not found, say 'I couldn't find that information in the document.'"},
+                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
+            ],
+            temperature=0.3,
         )
-        response.raise_for_status()
-        return response.json().get("response", "").strip()
+        return response.choices[0].message.content.strip()
 
     except Exception as e:
         print(f"Response generation failed: {e}")
-        return "Sorry, I was unable to generate a response. Please make sure Ollama is running."
+        return "Sorry, I was unable to generate a response. Please check your Groq API key."
